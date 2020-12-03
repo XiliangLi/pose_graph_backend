@@ -21,3 +21,6 @@ bin
 *~
 *.autosave
 logs/*
+
+compile_commands.json
+.cache
