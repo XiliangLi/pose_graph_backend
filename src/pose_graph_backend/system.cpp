@@ -34,14 +34,9 @@
  * Created on: Aug 14, 2018
  */
 
-#include <algorithm>
-#include <chrono>
-#include <iostream>
-
-#include <pcl_conversions/pcl_conversions.h>
-#include "pose_graph_backend/optimizer.hpp"
 #include "pose_graph_backend/system.hpp"
 
+#include <pcl_conversions/pcl_conversions.h>
 #include <robopt_open/common/definitions.h>
 #include <robopt_open/local-parameterization/pose-quaternion-local-param.h>
 #include <robopt_open/local-parameterization/pose-quaternion-yaw-local-param.h>
@@ -50,6 +45,19 @@
 #include <robopt_open/posegraph-error/gps-error-autodiff.h>
 #include <robopt_open/posegraph-error/six-dof-between.h>
 #include <robopt_open/reprojection-error/relative-euclidean.h>
+
+#include <algorithm>
+#include <chrono>
+#include <deque>
+#include <iostream>
+#include <limits>
+#include <memory>
+#include <set>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "pose_graph_backend/optimizer.hpp"
 
 namespace pgbe {
 
@@ -74,7 +82,7 @@ System::System(const SystemParameters& params) : parameters_(params) {
 void System::addKeyFrameMsg(const comm_msgs::keyframeConstPtr& keyframe_msg,
                             const uint64_t agent_id) {
   //  const uint64_t agent_id = keyframe_msg->agentId;
-  keyframe_msgs_received_[agent_id]->PushBlockingIfFull(keyframe_msg, 1);
+  keyframe_msgs_received_[agent_id]->Push(keyframe_msg);
 }
 
 void System::addOdometryMsg(const nav_msgs::OdometryConstPtr& keyframe_msg,
@@ -186,14 +194,15 @@ void System::init() {
   for (size_t i = 0; i < parameters_.num_agents; ++i) {
     keyframe_consumer_threads_.emplace_back(&System::keyframeConsumerLoop, this,
                                             i);
-    keyframe_optimizer_threads_.emplace_back(&System::optimizerLoop, this, i);
-    gps_consumer_threads_.emplace_back(&System::gpsConsumerLoop, this, i);
-    // No longer using regular pcl setup, everything uses FusedPcl
-    // pcl_consumrer_threads_.emplace_back(
-    //       &System::pclConsumerLoop, this, i);
-    fused_pcl_consumer_threads_.emplace_back(&System::fusedPclConsumerLoop,
-                                             this, i);
-    publisher_threads_.emplace_back(&System::publisherLoop, this, i);
+    // keyframe_optimizer_threads_.emplace_back(&System::optimizerLoop, this,
+    // i); gps_consumer_threads_.emplace_back(&System::gpsConsumerLoop, this,
+    // i);
+    // // No longer using regular pcl setup, everything uses FusedPcl
+    // // pcl_consumrer_threads_.emplace_back(
+    // //       &System::pclConsumerLoop, this, i);
+    // fused_pcl_consumer_threads_.emplace_back(&System::fusedPclConsumerLoop,
+    //                                          this, i);
+    // publisher_threads_.emplace_back(&System::publisherLoop, this, i);
   }
 
   ROS_INFO("[PGB] Started all threads");
@@ -202,9 +211,9 @@ void System::init() {
 void System::keyframeConsumerLoop(const uint64_t agent_id) {
   comm_msgs::keyframeConstPtr keyframe_msg;
   for (;;) {
-    if (keyframe_msgs_received_[agent_id]->PopBlocking(&keyframe_msg) ==
-        false) {
-      return;
+    if (keyframe_msgs_received_[agent_id]->PopTimeout(&keyframe_msg,
+                                                      500000000) == false) {
+      continue;
     }
 
     // Create a new keyframe
@@ -251,13 +260,6 @@ void System::keyframeConsumerLoop(const uint64_t agent_id) {
       only_insert = true;
     }
 
-    // Only allow loop closure detection after GPS alignment is complete for
-    // agents with an active GPS. (is this necessary....)
-    if ((maps_[agent_id]->getGPSStatus()) &&
-        (!maps_[agent_id]->hasValidWorldTransformation())) {
-      only_insert = true;
-    }
-
     // Don't attempt loop detection if session has just begun (no keyframes)
     Map::KFvec recent_kf = maps_[agent_id]->getMostRecentN(2);
     if (recent_kf.empty()) {
@@ -294,148 +296,6 @@ void System::keyframeConsumerLoop(const uint64_t agent_id) {
     keyframe_to_process->setLoopClosurePose(T_M_Si);
     keyframe_to_process->setOptimizedPose(T_M_Si);
     maps_[agent_id]->addKeyFrame(keyframe_to_process);
-
-    // If loop closure was detected between agents without valid world
-    // transformations, create initial transformation to be used in the global
-    // optimization
-
-    if (loop_detected) {
-      std::pair<Identifier, Eigen::Matrix4d> recent_merge =
-          maps_[agent_id]->getNewMerge();
-      Identifier recent_merge_ID = recent_merge.first;
-      uint64_t recent_merge_agent = recent_merge_ID.first;
-      std::shared_ptr<KeyFrame> recent_merge_kf =
-          maps_[recent_merge_agent]->getKeyFrame(recent_merge_ID);
-
-      // prevent empty keyframe from being returned
-      if (recent_merge_ID.second > 0) {
-        // std::cout << "CURRENT AGENT " << agent_id << " VALID: "<<
-        // maps_[agent_id]->hasValidWorldTransformation() << std::endl;
-        // std::cout << "MERGE AGENT " << recent_merge_agent << " VALID: "<<
-        // maps_[recent_merge_agent]->hasValidWorldTransformation() <<
-        // std::endl;
-        if (!maps_[agent_id]->hasValidWorldTransformation() ||
-            !maps_[recent_merge_agent]->hasValidWorldTransformation()) {
-          Eigen::Matrix4d T_W_M_anchor;
-          Eigen::Matrix4d T_M_S_anchor;
-          Eigen::Matrix4d T_M_S_merge;
-          Eigen::Matrix4d T_W_M_init;
-          Eigen::Matrix4d T_A_B = recent_merge.second;
-          Eigen::Matrix4d covariance = Eigen::MatrixXd::Zero(4, 4);
-          covariance(0, 0) = covariance(1, 1) = covariance(2, 2) =
-              covariance(3, 3) = 0.5;
-
-          if (!maps_[agent_id]->hasValidWorldTransformation() &&
-              !maps_[recent_merge_agent]->hasValidWorldTransformation()) {
-            uint64_t lower_agent_id =
-                (agent_id < recent_merge_agent) ? agent_id : recent_merge_agent;
-            maps_[lower_agent_id]->setWorldAnchor();
-            Eigen::Matrix4d T_W_M = Eigen::Matrix4d::Identity();
-            Eigen::Matrix4d covariance = Eigen::MatrixXd::Zero(4, 4);
-            covariance(0, 0) = covariance(1, 1) = covariance(2, 2) =
-                covariance(3, 3) = 0.001;
-            maps_[lower_agent_id]->setWorldTransformation(T_W_M, covariance);
-            T_W_M_anchor = T_W_M;
-          }
-
-          if (maps_[agent_id]->hasValidWorldTransformation()) {
-            T_W_M_anchor = maps_[agent_id]->getWorldTransformation();
-            T_M_S_anchor = T_M_Si;
-            T_M_S_merge = recent_merge_kf->getOptimizedPose();
-            T_W_M_init =
-                T_W_M_anchor * T_M_S_anchor * T_A_B * T_M_S_merge.inverse();
-
-            maps_[recent_merge_agent]->setWorldTransformation(T_W_M_init,
-                                                              covariance);
-            std::cout << "OPTION 1: Initializing world transform for agent "
-                      << recent_merge_agent << " based on " << agent_id
-                      << std::endl;
-          } else if (maps_[recent_merge_agent]->hasValidWorldTransformation()) {
-            T_W_M_anchor = maps_[recent_merge_agent]->getWorldTransformation();
-            T_M_S_anchor = recent_merge_kf->getOptimizedPose();
-            T_M_S_merge = T_M_Si;
-            T_W_M_init = T_W_M_anchor * T_M_S_anchor * T_A_B.inverse() *
-                         T_M_S_merge.inverse();
-
-            maps_[agent_id]->setWorldTransformation(T_W_M_init, covariance);
-            std::cout << "OPTION 2: Initializing world transform for agent "
-                      << agent_id << " based on " << recent_merge_agent
-                      << std::endl;
-          }
-        }
-      }
-    }
-
-    // Associate the GPS measurements with the keyframe
-    OdomGPScombinedQueue gps_measurements =
-        getCombinedMeasurement(time_start, time_end, agent_id);
-    if (!gps_measurements.empty()) {
-      for (auto itr = gps_measurements.begin(); itr != gps_measurements.end();
-           ++itr) {
-        keyframe_to_process->addGpsMeasurement((*itr));
-      }
-      deleteCombinedMeasurements(time_end, agent_id);
-    }
-
-    // start = chrono::steady_clock::now();
-    if (loop_detected) {
-      ROS_INFO("[PGB] Found a loop closure for agent %lu frame %lu", agent_id,
-               kf_id.second);
-      last_loop_closure_[agent_id] = keyframe_to_process->getTimestamp();
-    } else {
-      if (maps_[agent_id]->hasValidWorldTransformation() &&
-          !trigger_init_opt_[agent_id]) {
-        // Optimize the local graph
-        Optimizer::optimizeLocalPoseGraph(
-            maps_[agent_id], parameters_.local_opt_window_size,
-            optimization_flags_[agent_id], parameters_);
-      }
-    }
-    // end = chrono::steady_clock::now();
-    // std::cout << "Local Optimization for agent " << agent_id << " took: " <<
-    // chrono::duration_cast<chrono::milliseconds>(end - start).count() << " ms"
-    // << std::endl;
-
-    // Extract the transformations and push into Result to publish for TF tree
-    T_M_O = maps_[agent_id]->getOdomToMap();
-    Eigen::Matrix4d T_W_M = Eigen::Matrix4d::Identity();
-    if (maps_[agent_id]->hasValidWorldTransformation()) {
-      T_W_M = maps_[agent_id]->getWorldTransformation();
-    }
-    Result result(keyframe_to_process->getTimestamp(), T_M_O, T_W_M,
-                  keyframe_to_process->getOptimizedPose());
-    pub_msgs_received_[agent_id]->PushBlockingIfFull(result, 2);
-
-    // Store the new poses in ceres structure for later optimization
-    Optimizer::homogenousToCeres(keyframe_to_process->getLoopClosurePose(),
-                                 keyframe_to_process->ceres_pose_loop_);
-    Optimizer::homogenousToCeres(keyframe_to_process->getExtrinsics(),
-                                 keyframe_to_process->ceres_extrinsics_);
-
-    // RVIZ path publishing
-    updatePath(agent_id);
-    Eigen::Matrix4d T_S_C = keyframe_to_process->getExtrinsics();
-    Eigen::Matrix4d T_M_S = keyframe_to_process->getOptimizedPose();
-    Eigen::Matrix4d T_W_C = T_W_M * T_M_S * T_S_C;
-    cam_viz_callback_(agent_id, keyframe_to_process->getTimestamp(), T_W_C);
-
-    // Push the keyframe to the optimizer loop
-    keyframes_received_[agent_id]->PushBlockingIfFull(keyframe_to_process, 1);
-
-    // Write poses to csv for debugging
-    if (parameters_.logging) {
-      std::string filename =
-          parameters_.log_folder + "/pose_" + std::to_string(agent_id) + "_" +
-          std::to_string(keyframe_to_process->getId().second) + ".csv";
-      if (kf_id.second % 1 == 0) {
-        maps_[agent_id]->writePosesToFileInWorld(filename);
-      }
-      filename =
-          parameters_.log_folder + "/pose_" + std::to_string(agent_id) + ".csv";
-      if (kf_id.second % 1 == 0) {
-        maps_[agent_id]->writePosesToFileInWorld(filename);
-      }
-    }
   }
 }
 
