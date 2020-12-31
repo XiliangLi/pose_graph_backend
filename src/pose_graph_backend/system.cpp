@@ -36,6 +36,7 @@
 
 #include "pose_graph_backend/system.hpp"
 
+#include <coxgraph_mod/vio_interface.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <robopt_open/common/definitions.h>
 #include <robopt_open/local-parameterization/pose-quaternion-local-param.h>
@@ -83,6 +84,8 @@ void System::addKeyFrameMsg(const comm_msgs::keyframeConstPtr& keyframe_msg,
                             const uint64_t agent_id) {
   //  const uint64_t agent_id = keyframe_msg->agentId;
   keyframe_msgs_received_[agent_id]->Push(keyframe_msg);
+
+  coxgraph::mod::updateNeedToFuse();
 }
 
 void System::addOdometryMsg(const nav_msgs::OdometryConstPtr& keyframe_msg,
