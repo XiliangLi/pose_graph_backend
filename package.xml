@@ -24,5 +24,7 @@
   <depend>geodetic_utils</depend>
   <depend>opengv</depend>
   <depend>robopt_open</depend>
+  <depend>pcl_catkin</depend>
+  <depend>coxgraph_mod</depend>
 
 </package>

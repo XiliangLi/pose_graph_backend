@@ -45,7 +45,7 @@
     <param name="loop_detect_min_pose_inliers"    value="15"/>   <!-- LoopDetector::addKeyFrame -->
 
     <param name="loop_detect_reset_time"          value="5"/>    <!-- System::keyFrameConsumerLoop -->
-    <param name="loop_detect_skip_kf"             value="1"/>    <!-- System::keyFrameConsumerLoop -->
+    <param name="loop_detect_skip_kf"             value="3"/>    <!-- System::keyFrameConsumerLoop -->
     
     <param name="information_odom_map_yaw"        value="10"/>
     <param name="information_odom_map_p"          value="10"/>

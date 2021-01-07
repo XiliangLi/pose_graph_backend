@@ -34,13 +34,15 @@
  * Created on: Aug 13, 2018
  */
 
+#include <glog/logging.h>
 #include <ros/ros.h>
-#include <fstream>
-#include <iostream>
 
 #include <Eigen/Core>
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
+#include <fstream>
+#include <iostream>
+#include <memory>
 
 #include "parameter-reader.hpp"
 #include "pose_graph_backend/system.hpp"
@@ -48,6 +50,11 @@
 #include "subscriber.hpp"
 
 int main(int argc, char **argv) {
+  // Start logging
+  google::InitGoogleLogging(argv[0]);
+  google::ParseCommandLineFlags(&argc, &argv, false);
+  google::InstallFailureSignalHandler();
+
   // Initialize ros
   ros::init(argc, argv, "pose_graph_backend");
 

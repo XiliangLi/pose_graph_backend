@@ -19,14 +19,12 @@ else()
 endif()
 
 find_package(catkin_simple REQUIRED)
-find_package(PCL REQUIRED)
 catkin_simple(ALL_DEPS_REQUIRED)
 
 include_directories(${catkin_INCLUDE_DIRS})
 include_directories("include")
 include_directories("thirdparty/DBoW2")
 include_directories("thirdparty/okvis")
-include_directories(${PCL_INCLUDE_DIRS})
 
 # Thirdparty files
 set(thrdprtysrc
@@ -64,7 +62,6 @@ cs_add_library(pose_graph_backend_lib
 
 target_link_libraries(pose_graph_backend_lib
   ${catkin_LIBRARIES}
-  ${PCL_LIBRARIES}
 )
 
 cs_add_executable(pose_graph_node

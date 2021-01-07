@@ -35,6 +35,13 @@
  */
 
 #include "pose_graph_backend/loop-detection.hpp"
+
+#include <coxgraph_mod/vio_interface.h>
+
+#include <memory>
+#include <set>
+#include <string>
+
 #include "pose_graph_backend/optimizer.hpp"
 
 namespace pgbe {
@@ -209,6 +216,11 @@ bool LoopDetection::addKeyframe(std::shared_ptr<KeyFrame> keyframe,
     if (keyframe->getId().first != loop_candidates[i]->getId().first) {
       map_ptr_->setNewMerge(loop_candidates[i]->getId(), T_A_B);
     }
+
+    coxgraph::mod::publishLoopClosure(
+        keyframe->getId().first, keyframe->getTimestamp(),
+        loop_candidates[i]->getId().first, loop_candidates[i]->getTimestamp(),
+        T_A_B);
 
     std::string filename =
         "/home/btearle/Documents/debug/pgbe/loop_closures/lc_" +

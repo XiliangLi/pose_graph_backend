@@ -36,6 +36,8 @@
 
 #include "pose_graph_backend/keyframe-database.hpp"
 
+#include <coxgraph_mod/vio_interface.h>
+
 namespace pgbe {
 
 KeyFrameDatabase::KeyFrameDatabase(const SystemParameters& params)
@@ -94,6 +96,14 @@ KeyFrameDatabase::detectLoopCandidates(std::shared_ptr<KeyFrame> query,
            ++lit) {
         std::shared_ptr<KeyFrame> kf_ptr = (*lit);
         if (kf_ptr->getId() == query->getId()) continue;
+
+        // if kf from same client, continue
+        if (kf_ptr->getId().first == query->getId().first) continue;
+
+        // if not need to fuse, continue
+        if (!coxgraph::mod::needToFuse(kf_ptr->getId().first,
+                                       query->getId().first))
+          continue;
 
         // TODO: if (!all_kfs_in_map.count(kf_ptr)) continue;
         auto itr = std::find(kfs_sharing_words.begin(), kfs_sharing_words.end(),
