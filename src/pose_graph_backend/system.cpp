@@ -85,7 +85,7 @@ void System::addKeyFrameMsg(const comm_msgs::keyframeConstPtr& keyframe_msg,
   //  const uint64_t agent_id = keyframe_msg->agentId;
   keyframe_msgs_received_[agent_id]->Push(keyframe_msg);
 
-  coxgraph::mod::updateNeedToFuse();
+  // coxgraph::mod::updateNeedToFuse();
 }
 
 void System::addOdometryMsg(const nav_msgs::OdometryConstPtr& keyframe_msg,

@@ -101,9 +101,9 @@ KeyFrameDatabase::detectLoopCandidates(std::shared_ptr<KeyFrame> query,
         if (kf_ptr->getId().first == query->getId().first) continue;
 
         // if not need to fuse, continue
-        if (!coxgraph::mod::needToFuse(kf_ptr->getId().first,
-                                       query->getId().first))
-          continue;
+        // if (!coxgraph::mod::needToFuse(kf_ptr->getId().first,
+        //                                query->getId().first))
+        //   continue;
 
         // TODO: if (!all_kfs_in_map.count(kf_ptr)) continue;
         auto itr = std::find(kfs_sharing_words.begin(), kfs_sharing_words.end(),
