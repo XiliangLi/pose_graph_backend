@@ -48,12 +48,14 @@ namespace pgbe {
 
 LoopDetection::LoopDetection(const SystemParameters& params,
                              std::shared_ptr<Map> map_ptr,
-                             std::shared_ptr<KeyFrameDatabase> database_ptr)
+                             std::shared_ptr<KeyFrameDatabase> database_ptr,
+                             coxgraph::mod::VIOInterface* vio_interface)
     : parameters_(params),
       map_ptr_(map_ptr),
       database_ptr_(database_ptr),
       matcher_(
-          std::shared_ptr<okvis::DenseMatcher>(new okvis::DenseMatcher(4))) {}
+          std::shared_ptr<okvis::DenseMatcher>(new okvis::DenseMatcher(4))),
+      vio_interface_(vio_interface) {}
 
 bool LoopDetection::addKeyframe(std::shared_ptr<KeyFrame> keyframe,
                                 const bool only_insert) {
@@ -217,7 +219,7 @@ bool LoopDetection::addKeyframe(std::shared_ptr<KeyFrame> keyframe,
       map_ptr_->setNewMerge(loop_candidates[i]->getId(), T_A_B);
     }
 
-    coxgraph::mod::publishLoopClosure(
+    vio_interface_->publishLoopClosure(
         keyframe->getId().first, keyframe->getTimestamp(),
         loop_candidates[i]->getId().first, loop_candidates[i]->getTimestamp(),
         T_A_B);

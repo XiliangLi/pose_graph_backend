@@ -36,6 +36,8 @@
 
 #pragma once
 
+#include <coxgraph_mod/vio_interface.h>
+
 #include <Eigen/Core>
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
@@ -59,7 +61,7 @@ class LoopDetection {
  public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   /// \brief Empty constructor
-  LoopDetection(){};
+  LoopDetection() {}
   ~LoopDetection(){};
 
   /// \brief Loop detector constructor
@@ -67,7 +69,8 @@ class LoopDetection {
   /// @param map_ptr Pointer to the underlying map.
   /// @param database_ptr Pointer to the keyframe database.
   LoopDetection(const SystemParameters& params, std::shared_ptr<Map> map_ptr,
-                std::shared_ptr<KeyFrameDatabase> database_ptr);
+                std::shared_ptr<KeyFrameDatabase> database_ptr,
+                coxgraph::mod::VIOInterface* vio_interface);
 
   /// \brief Add new keyframe and check for loop-closure.
   /// @param keyframe The new keyframe.
@@ -97,6 +100,8 @@ class LoopDetection {
 
   // The matcher
   std::shared_ptr<okvis::DenseMatcher> matcher_;
+
+  coxgraph::mod::VIOInterface* vio_interface_;
 };
 
 }  // namespace pgbe

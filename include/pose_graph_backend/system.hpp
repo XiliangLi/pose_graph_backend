@@ -36,26 +36,26 @@
 
 #pragma once
 
+#include <comm_msgs/fused_pcl.h>
+#include <comm_msgs/keyframe.h>
+#include <coxgraph_mod/vio_interface.h>
+#include <nav_msgs/Path.h>
+#include <pcl/common/transforms.h>
+#include <pcl_conversions/pcl_conversions.h>
+#include <ros/ros.h>
+#include <sensor_msgs/NavSatFix.h>
+
+#include <Eigen/Core>
+#include <Eigen/Dense>
+#include <Eigen/Geometry>
 #include <atomic>
 #include <condition_variable>
 #include <deque>
 #include <functional>
+#include <geodetic_utils/geodetic_conv.hpp>
 #include <memory>
 #include <mutex>
 #include <thread>
-
-#include <ros/ros.h>
-#include <Eigen/Core>
-#include <Eigen/Dense>
-#include <Eigen/Geometry>
-
-#include <comm_msgs/fused_pcl.h>
-#include <comm_msgs/keyframe.h>
-#include <nav_msgs/Path.h>
-#include <pcl/common/transforms.h>
-#include <pcl_conversions/pcl_conversions.h>
-#include <sensor_msgs/NavSatFix.h>
-#include <geodetic_utils/geodetic_conv.hpp>
 
 #include "measurements.hpp"
 #include "parameters.hpp"
@@ -130,7 +130,8 @@ class System {
 
   /// \brief Constructor
   /// @param params The system parameters.
-  System(const SystemParameters& params);
+  System(const SystemParameters& params, const ros::NodeHandle& nh,
+         const ros::NodeHandle& nh_private);
 
   /// \brief Set the transform callback.
   /// @param callback The callback function.
@@ -383,6 +384,8 @@ class System {
   PathCallback path_callback_;
   CamVizCallback cam_viz_callback_;
   FusedPCLCallback fused_pcl_callback_;
+
+  coxgraph::mod::VIOInterface* vio_interface_;
 };
 
 }  // namespace pgbe

@@ -74,7 +74,10 @@ System::~System() {
   }
 }
 
-System::System(const SystemParameters& params) : parameters_(params) {
+System::System(const SystemParameters& params, const ros::NodeHandle& nh,
+               const ros::NodeHandle& nh_private)
+    : parameters_(params),
+      vio_interface_(new coxgraph::mod::VIOInterface(nh, nh_private)) {
   database_ = std::make_shared<KeyFrameDatabase>(params);
   kf_loop_detection_skip_ = 0;
   init();
@@ -151,7 +154,7 @@ void System::init() {
   // Initialize the loop-detectors
   for (size_t i = 0; i < parameters_.num_agents; ++i) {
     loop_detectors_.emplace_back(std::shared_ptr<LoopDetection>(
-        new LoopDetection(parameters_, maps_[i], database_)));
+        new LoopDetection(parameters_, maps_[i], database_, vio_interface_)));
     last_loop_closure_.push_back(0.0);
   }
 

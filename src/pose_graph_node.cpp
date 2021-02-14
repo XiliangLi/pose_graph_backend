@@ -60,6 +60,7 @@ int main(int argc, char **argv) {
 
   // set up the node
   ros::NodeHandle nh("pose_graph_backend");
+  ros::NodeHandle nh_private("~");
 
   // Read the parameters
   int num_agents = 0;
@@ -79,7 +80,8 @@ int main(int argc, char **argv) {
   ROS_INFO("[PGB] Sucessfully read the parameters and the vocabulary");
 
   // Create the system
-  std::shared_ptr<pgbe::System> system(new pgbe::System(parameters));
+  std::shared_ptr<pgbe::System> system(
+      new pgbe::System(parameters, nh, nh_private));
 
   // Create the subscriber& publisher
   pgbe::Subscriber subscriber(nh, parameters, system);
