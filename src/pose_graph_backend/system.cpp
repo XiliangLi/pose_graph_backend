@@ -77,7 +77,12 @@ System::~System() {
 System::System(const SystemParameters& params, const ros::NodeHandle& nh,
                const ros::NodeHandle& nh_private)
     : parameters_(params),
+      nh_private_(nh_private),
       vio_interface_(new coxgraph::mod::VIOInterface(nh, nh_private)) {
+  nh_private_.param<std::string>("trajectory_path", file_path_, "");
+  LOG(INFO) << "trajectory_path: " << file_path_;
+  save_path_srv_ = nh_private_.advertiseService(
+      "save_path", &System::savePathCallback, this);
   database_ = std::make_shared<KeyFrameDatabase>(params);
   kf_loop_detection_skip_ = 0;
   init();
@@ -200,15 +205,15 @@ void System::init() {
   for (size_t i = 0; i < parameters_.num_agents; ++i) {
     keyframe_consumer_threads_.emplace_back(&System::keyframeConsumerLoop, this,
                                             i);
-    // keyframe_optimizer_threads_.emplace_back(&System::optimizerLoop, this,
-    // i); gps_consumer_threads_.emplace_back(&System::gpsConsumerLoop, this,
+    keyframe_optimizer_threads_.emplace_back(&System::optimizerLoop, this, i);
+    // gps_consumer_threads_.emplace_back(&System::gpsConsumerLoop, this,
     // i);
     // // No longer using regular pcl setup, everything uses FusedPcl
     // // pcl_consumrer_threads_.emplace_back(
     // //       &System::pclConsumerLoop, this, i);
     // fused_pcl_consumer_threads_.emplace_back(&System::fusedPclConsumerLoop,
     //                                          this, i);
-    // publisher_threads_.emplace_back(&System::publisherLoop, this, i);
+    publisher_threads_.emplace_back(&System::publisherLoop, this, i);
   }
 
   ROS_INFO("[PGB] Started all threads");
@@ -289,11 +294,11 @@ void System::keyframeConsumerLoop(const uint64_t agent_id) {
     Eigen::Matrix4d T_M_O = maps_[agent_id]->getOdomToMap();
     auto end = chrono::steady_clock::now();
     Identifier kf_id = keyframe_to_process->getId();
-    std::cout
-        << "Loop_detection for agent " << agent_id << " took: "
-        << chrono::duration_cast<chrono::milliseconds>(end - start).count()
-        << " ms"
-        << std::endl;  // "\t Landmarks: " <<
+ // std::cout
+ //     << "Loop_detection for agent " << agent_id << " took: "
+ //     << chrono::duration_cast<chrono::milliseconds>(end - start).count()
+ //     << " ms"
+ //     << std::endl;  // "\t Landmarks: " <<
                        // keyframe_to_process->getNumLandmarks() << std::endl;
 
     // Update the poses
@@ -408,6 +413,7 @@ void System::optimizerLoop(const uint64_t agent_id) {
       pub_msgs_received_[agent_id]->PushBlockingIfFull(result, 2);
     }
   }
+  updatePath(agent_id);
 }
 
 void System::gpsConsumerLoop(const uint64_t agent_id) {
@@ -969,6 +975,31 @@ void System::updatePath(const uint64_t agent_id) {
     paths_[agent_id].header = pose_stamped.header;
   }
   path_callback_(paths_[agent_id], agent_id);
+}
+
+void System::savePath(std::string file_path) {
+  LOG(INFO) << "saving path";
+  std::vector<std::ofstream> fs;
+  for (size_t i = 0; i < paths_.size(); i++) {
+    boost::filesystem::path p(file_path_);
+    p.append("vins_c" + std::to_string(i) + ".txt");
+    fs.emplace_back(std::ofstream());
+    fs[i].open(p.string());
+    LOG(INFO) << p.string();
+  }
+  for (size_t i = 0; i < paths_.size(); i++) {
+    LOG(INFO) << paths_[i].poses.size();
+    for (auto const& pose : paths_[i].poses) {
+      LOG(INFO) << pose.pose;
+      fs[i] << std::setprecision(6) << pose.header.stamp.toSec()
+            << std::setprecision(7) << " " << pose.pose.position.x << " "
+            << pose.pose.position.y << " " << pose.pose.position.z << " "
+            << pose.pose.orientation.x << " " << pose.pose.orientation.y << " "
+            << pose.pose.orientation.z << " " << pose.pose.orientation.w
+            << std::endl;
+    }
+  }
+  for (auto& f : fs) f.close();
 }
 
 }  // namespace pgbe

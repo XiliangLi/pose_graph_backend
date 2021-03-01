@@ -44,6 +44,7 @@
 #include <pcl_conversions/pcl_conversions.h>
 #include <ros/ros.h>
 #include <sensor_msgs/NavSatFix.h>
+#include <std_srvs/Empty.h>
 
 #include <Eigen/Core>
 #include <Eigen/Dense>
@@ -293,6 +294,17 @@ class System {
   /// \brief Update the agent's path for visualization
   /// @param agent_id The id of the agent to update the path
   void updatePath(const uint64_t agent_id);
+
+  void savePath(std::string file_path);
+
+  ros::NodeHandle nh_private_;
+  ros::ServiceServer save_path_srv_;
+  std::string file_path_;
+  bool savePathCallback(std_srvs::Empty::Request& request,
+                        std_srvs::Empty::Response& response) {
+    savePath(file_path_);
+    return true;
+  }
 
   // store the path messages
   std::vector<nav_msgs::Path> paths_;

@@ -134,6 +134,7 @@ bool LoopDetection::addKeyframe(std::shared_ptr<KeyFrame> keyframe,
     // chrono::duration_cast<chrono::milliseconds>(end - start).count() << " ms"
     // << std::endl;
 
+    std::cout << "sac Num_matches: " << sac_prob.inliers_.size() << std::endl;
     if (sac_prob.inliers_.size() < parameters_.loop_detect_min_sac_inliers) {
       continue;
     }
@@ -168,6 +169,8 @@ bool LoopDetection::addKeyframe(std::shared_ptr<KeyFrame> keyframe,
     // std::cout << "SAC backwards " << i << ": " <<
     // chrono::duration_cast<chrono::milliseconds>(end - start).count() <<
     // std::endl;
+    std::cout << "sac_prob_inv Num_matches: " << sac_prob_inv.inliers_.size()
+              << std::endl;
     if (sac_prob_inv.inliers_.size() <
         parameters_.loop_detect_min_sac_inv_inliers) {
       continue;
@@ -210,6 +213,11 @@ bool LoopDetection::addKeyframe(std::shared_ptr<KeyFrame> keyframe,
     const Eigen::Matrix4d T_S_C_B = loop_candidates[i]->getExtrinsics();
     T_A_B = T_S_C_A * T_A_B * T_S_C_B.inverse();
 
+    vio_interface_->publishLoopClosure(
+        keyframe->getId().first, keyframe->getTimestamp(),
+        loop_candidates[i]->getId().first, loop_candidates[i]->getTimestamp(),
+        T_A_B);
+
     // We have found a loop closure
     found_match = true;
     LoopEdge edge(keyframe->getId(), loop_candidates[i]->getId(), T_A_B);
@@ -218,11 +226,6 @@ bool LoopDetection::addKeyframe(std::shared_ptr<KeyFrame> keyframe,
     if (keyframe->getId().first != loop_candidates[i]->getId().first) {
       map_ptr_->setNewMerge(loop_candidates[i]->getId(), T_A_B);
     }
-
-    vio_interface_->publishLoopClosure(
-        keyframe->getId().first, keyframe->getTimestamp(),
-        loop_candidates[i]->getId().first, loop_candidates[i]->getTimestamp(),
-        T_A_B);
 
     std::string filename =
         "/home/btearle/Documents/debug/pgbe/loop_closures/lc_" +

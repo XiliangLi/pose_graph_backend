@@ -33,6 +33,8 @@
  * @author: Marco Karrer
  * Created on: Aug 17, 2018
  */
+#include "pose_graph_backend/optimizer.hpp"
+
 #include <aslam/cameras/camera-pinhole.h>
 #include <aslam/cameras/camera.h>
 #include <aslam/cameras/distortion-equidistant.h>
@@ -45,12 +47,11 @@
 #include <robopt_open/posegraph-error/gps-error-autodiff.h>
 #include <robopt_open/posegraph-error/six-dof-between.h>
 #include <robopt_open/reprojection-error/relative-euclidean.h>
+
 #include <algorithm>
 #include <chrono>
 #include <iostream>
 #include <numeric>
-
-#include "pose_graph_backend/optimizer.hpp"
 
 namespace pgbe {
 
@@ -413,7 +414,7 @@ int Optimizer::optimizeRelativePose(std::shared_ptr<KeyFrame> keyframe_A,
   options.num_threads = 4;
   options.num_linear_solver_threads = 4;
   options.trust_region_strategy_type = ceres::DOGLEG;
-  options.max_num_iterations = 50;
+  options.max_num_iterations = 100;
   ceres::Solver::Summary summary;
   ceres::Solve(options, &problem, &summary);
   // std::cout <<"Relative Pose Optimization Report: " << std::endl;
@@ -430,6 +431,7 @@ int Optimizer::optimizeRelativePose(std::shared_ptr<KeyFrame> keyframe_A,
   for (size_t i = 0; i < resid_ids.size(); ++i) {
     Eigen::Vector2d resid(residuals[resid_ind], residuals[resid_ind + 1]);
     resid_ind += 2;
+    std::cout << resid.norm() << std::endl;
     if (resid.norm() > params.rel_pose_outlier_norm_min) {
       problem.RemoveResidualBlock(resid_ids[i]);
       ++num_bad;
@@ -1206,8 +1208,8 @@ void Optimizer::optimizeLocalPoseGraph(std::shared_ptr<Map> map_ptr,
   // options.callbacks.push_back(stop_callback);
   ceres::Solver::Summary summary;
   ceres::Solve(options, &problem, &summary);
-  //std::cout << "Local Optimization Summary" << std::endl;
-  //std::cout << summary.FullReport() << std::endl;
+  // std::cout << "Local Optimization Summary" << std::endl;
+  // std::cout << summary.FullReport() << std::endl;
 
   if (*stop_flag) {
     return;
