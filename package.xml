@@ -20,11 +20,11 @@
   <depend>ceres_catkin</depend>
   <depend>aslam_cv_cameras</depend> 
   <depend>brisk</depend>
-  <depend>opencv3_catkin</depend>
   <depend>geodetic_utils</depend>
   <depend>opengv</depend>
   <depend>robopt_open</depend>
-  <depend>pcl_catkin</depend>
   <depend>coxgraph_mod</depend>
+  <depend>pcl_ros</depend>
+  <depend>pcl_conversions</depend>
 
 </package>

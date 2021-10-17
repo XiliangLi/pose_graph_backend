@@ -255,8 +255,8 @@ void LoopDetection::saveMatchingImage(const std::string& filename,
   cv::Mat outimg(2 * im_rows, im_cols, CV_8UC3);
   cv::Mat img_A_col = outimg(cv::Rect(0, 0, im_cols, im_rows));
   cv::Mat img_B_col = outimg(cv::Rect(0, row_jump, im_cols, im_rows));
-  cv::cvtColor(img_A, img_A_col, CV_GRAY2BGR);
-  cv::cvtColor(img_B, img_B_col, CV_GRAY2BGR);
+  cv::cvtColor(img_A, img_A_col, cv::COLOR_GRAY2BGR);
+  cv::cvtColor(img_B, img_B_col, cv::COLOR_GRAY2BGR);
 
   // Define colors
   cv::Scalar blue = cv::Scalar(255, 0, 0);      // blue
@@ -272,10 +272,10 @@ void LoopDetection::saveMatchingImage(const std::string& filename,
     Eigen::Vector3d dummy_lm;
     if (keyframe_A->getLandmark(i, dummy_lm)) {
       cv::circle(img_A_col, cv::Point2f(kpt_i[0], kpt_i[1]), radius, green, 1,
-                 CV_AA);
+                 cv::LINE_AA);
     } else {
       cv::circle(img_A_col, cv::Point2f(kpt_i[0], kpt_i[1]), radius, blue, 1,
-                 CV_AA);
+                 cv::LINE_AA);
     }
   }
   for (size_t i = 0; i < keyframe_B->getNumKeypoints(); ++i) {
@@ -283,10 +283,10 @@ void LoopDetection::saveMatchingImage(const std::string& filename,
     Eigen::Vector3d dummy_lm;
     if (keyframe_B->getLandmark(i, dummy_lm)) {
       cv::circle(img_B_col, cv::Point2f(kpt_i[0], kpt_i[1]), radius, green, 1,
-                 CV_AA);
+                 cv::LINE_AA);
     } else {
       cv::circle(img_B_col, cv::Point2f(kpt_i[0], kpt_i[1]), radius, blue, 1,
-                 CV_AA);
+                 cv::LINE_AA);
     }
   }
 
@@ -300,11 +300,11 @@ void LoopDetection::saveMatchingImage(const std::string& filename,
         keyframe_B->getLandmark(matches[i].idx_B, dummy_lm)) {
       // Has a 3d correspondence
       cv::line(outimg, cv::Point2f(kpt_A[0], kpt_A[1]),
-               cv::Point2f(kpt_B[0], kpt_B[1] + row_jump), green, 1, CV_AA);
+               cv::Point2f(kpt_B[0], kpt_B[1] + row_jump), green, 1, cv::LINE_AA);
     } else {
       // No 3d correspondence
       cv::line(outimg, cv::Point2f(kpt_A[0], kpt_A[1]),
-               cv::Point2f(kpt_B[0], kpt_B[1] + row_jump), blue, 1, CV_AA);
+               cv::Point2f(kpt_B[0], kpt_B[1] + row_jump), blue, 1, cv::LINE_AA);
     }
   }
   cv::imwrite(filename, outimg);
