@@ -24,3 +24,6 @@ logs/*
 
 compile_commands.json
 .cache
+
+# Ide
+.vscode/**

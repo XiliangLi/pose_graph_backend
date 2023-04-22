@@ -157,7 +157,7 @@ KeyFrameDatabase::detectLoopCandidates(std::shared_ptr<KeyFrame> query,
       if (std::abs(query->getTimestamp() - tmp_kf->getTimestamp()) < 5.0) {
         continue;
       }
-
+      // cout << "================= score: " << si << endl;
       if (si >= min_score) {
         score_and_match.push_back(std::make_pair(si, tmp_kf));
       }

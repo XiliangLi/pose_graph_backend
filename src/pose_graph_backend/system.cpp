@@ -267,7 +267,7 @@ void System::keyframeConsumerLoop(const uint64_t agent_id) {
 
     bool only_insert = false;
     if ((keyframe_to_process->getTimestamp() - last_loop_closure_[agent_id]) <
-        6.0) {
+        parameters_.loop_detect_reset_time) {
       only_insert = true;
     }
 
@@ -290,6 +290,8 @@ void System::keyframeConsumerLoop(const uint64_t agent_id) {
     } else {
       loop_detected = false;
     }
+
+    if(loop_detected) last_loop_closure_[agent_id] = keyframe_to_process->getTimestamp();
 
     Eigen::Matrix4d T_M_O = maps_[agent_id]->getOdomToMap();
     auto end = chrono::steady_clock::now();

@@ -99,13 +99,24 @@ bool LoopDetection::addKeyframe(std::shared_ptr<KeyFrame> keyframe,
 
   // We have some candidates--> check by BF matching if they are valid
   bool found_match = false;
+  bool found_different = false;
+  bool found_same = false;
+  bool detect_same = false;
+
   for (size_t i = 0; i < loop_candidates.size(); ++i) {
+    int same_id_nums = 0;
     ImageMatchingAlgorithm matching_algorithm(60.0f);
     matching_algorithm.setFrames(loop_candidates[i], keyframe);
     matcher_->match<ImageMatchingAlgorithm>(matching_algorithm);
     size_t num_matches = matching_algorithm.numMatches();
     Matches matches = matching_algorithm.getMatches();
     std::cout << "Num_matches: " << num_matches << std::endl;
+
+    //statisc the same agent loop candidates
+    if(loop_candidates[i]->getId().first == keyframe->getId().first) same_id_nums++;
+    double same_rate = same_id_nums / i;
+    if(same_id_nums > 0.75) detect_same = true;
+      else detect_same = false;
 
     if (num_matches < parameters_.loop_image_min_matches) {
       continue;
@@ -213,6 +224,10 @@ bool LoopDetection::addKeyframe(std::shared_ptr<KeyFrame> keyframe,
     const Eigen::Matrix4d T_S_C_B = loop_candidates[i]->getExtrinsics();
     T_A_B = T_S_C_A * T_A_B * T_S_C_B.inverse();
 
+    if(keyframe->getId().first == loop_candidates[i]->getId().first) {
+      found_same = true;      
+    } else found_different = true;
+
     vio_interface_->publishLoopClosure(
         keyframe->getId().first, keyframe->getTimestamp(),
         loop_candidates[i]->getId().first, loop_candidates[i]->getTimestamp(),
@@ -228,12 +243,14 @@ bool LoopDetection::addKeyframe(std::shared_ptr<KeyFrame> keyframe,
     }
 
     std::string filename =
-        "/home/btearle/Documents/debug/pgbe/loop_closures/lc_" +
+        "/home/lxl/Desktop/output/pgbe/loop_closures/lc_" +
         std::to_string(keyframe->getId().first) + "_" +
         std::to_string(loop_candidates[i]->getId().first) + "_" +
         std::to_string(keyframe->getId().second) + "_" + std::to_string(i) +
         ".csv";
     keyframe->writeLoopClosureTransform(filename, loop_candidates[i], T_A_B);
+
+    if((found_different && !detect_same) || (detect_same && found_same)) break;
   }
 
   return found_match;
