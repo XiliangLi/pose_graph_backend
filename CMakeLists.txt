@@ -21,6 +21,9 @@ endif()
 find_package(catkin_simple REQUIRED)
 catkin_simple(ALL_DEPS_REQUIRED)
 
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -msse4.1")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.1")
+
 include_directories(${catkin_INCLUDE_DIRS})
 include_directories("include")
 include_directories("thirdparty/DBoW2")
@@ -60,8 +63,12 @@ cs_add_library(pose_graph_backend_lib
   ${SRC}
 )
 
+find_package(OpenCV REQUIRED)
+include_directories(${OpenCV_INCLUDE_DIRS})
+
 target_link_libraries(pose_graph_backend_lib
   ${catkin_LIBRARIES}
+  ${OpenCV_LIBS}
 )
 
 cs_add_executable(pose_graph_node
